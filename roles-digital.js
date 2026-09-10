@@ -1204,7 +1204,7 @@ const ROLE_ORDER = [
 
 
   /* Digital catalog had no APP_BRAND (brand was hardcoded); define it here. */
-  const APP_BRAND = { title: "Digital &amp; Marketing", subtitle: "Job Order Intake" };
+  const APP_BRAND = { title: "Digital & Marketing", subtitle: "Job Order Intake" };
 
   window.FORMS.digital = {
     id: "digital",
