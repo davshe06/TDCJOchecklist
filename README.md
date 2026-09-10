@@ -1,11 +1,21 @@
 # TDC Job Order Checklist
 
-A condensed job order intake tool, forked from
-[RHJOForm](https://github.com/davshe06/RHJOForm) as a starting point.
+A **one-page checklist** for staffing reps to work during a live client intake
+call, forked from [RHJOForm](https://github.com/davshe06/RHJOForm).
 
-The parent app is a long-form intake builder. This project is intended to become
-a **shorter, checklist-style** version of the same idea — same underlying engine
-and role data, fewer questions and a faster path through the call.
+It captures nothing. The notes come from the Teams call transcription and the
+follow-up email — this page exists so the rep can confirm they asked
+everything needed to write the job order afterwards.
+
+Pick a business, pick a role, and you get:
+
+- a plain-language explainer of what that role actually does,
+- a recruiter coaching note on where the role varies,
+- the questions worth asking for that role, drawn from the role catalogs,
+- and the fixed block every job order needs — work model and address, start
+  date, interview process, pay rate, contract length and conversion, C2C/1099.
+
+Every role renders 14–16 items and prints to a single page.
 
 ## Running it
 
@@ -22,13 +32,14 @@ For GitHub Pages: Settings → Pages → Deploy from a branch → `main` / `/ (r
 | File | Purpose |
 | --- | --- |
 | `index.html` | Page shell; loads the catalogs, then the engine |
-| `app.js` | Generic render engine — wizard steps, state, exports, theming |
-| `styles.css` | All styling, including the light/dark and per-business accent themes |
-| `docx.js` | Dependency-free Word (.docx) generator |
-| `roles-management.js` | Management Resources catalog (PTS) |
-| `roles-tech.js` | Tech catalog (TTS) |
-| `roles-digital.js` | Digital & Marketing catalog (TTS) |
-| `api/analyze.js` | Vercel serverless function for the AI analysis |
+| `app.js` | Generic render engine — nav, role picker, checklist, theming |
+| `styles.css` | Styling, including light/dark and per-business accents, and the print rules |
+| `roles-management.js` | Management Resources catalog (PTS) — 14 roles |
+| `roles-tech.js` | Tech & Engineering catalog (TTS) — 13 roles |
+| `roles-digital.js` | Digital & Marketing catalog (TTS) — 9 roles |
+
+`api/analyze.js` and `vercel.json` are left over from the long-form app and are
+no longer referenced by the page.
 
 ### How the forms are wired
 
@@ -39,36 +50,36 @@ window.FORMS.management = {
   id: "management",
   label: "Management Resources",
   business: "pts",          // which business selector tab hosts it
-  stackLabel: "Systems & Skills",
   brand: APP_BRAND,
-  common: COMMON,           // basics / logistics / team / closing steps
-  roles: ROLES,             // role configs keyed by id
-  roleOrder: ROLE_ORDER     // display order in the picker
+  common: COMMON,           // retained, no longer rendered
+  roles: ROLES,
+  roleOrder: ROLE_ORDER
 };
 ```
 
 `app.js` is generic: it reads whatever is registered and renders it. To add or
-remove a form, add or delete a catalog file and its `<script>` tag — no engine
-changes needed. To condense the flow, the main levers are:
+remove a catalog, add or delete the file and its `<script>` tag — no engine
+changes needed.
 
-- `wizardSteps()` in `app.js` — which steps exist and their order
-- each catalog's `COMMON` — the role-agnostic questions
-- each role's `focusAreas[].deepDive.questions` — the drill-down questions
+### How the checklist is built
 
-## Storage keys
+Each role contributes one item per **focus area**, plus its "top 3 priorities"
+prompt. For each area the app shows the area's framing question and one
+question that drives a coaching tip in the catalog, so the checklist keeps the
+decision-tree's judgement about what separates candidates without asking all
+512 drill-down questions the long form contained.
 
-This app namespaces its own `localStorage` keys (`tdc-jo-checklist-*`) so it does
-**not** collide with RHJOForm when both are served from `davshe06.github.io`,
-which is a single origin.
+The catalogs still hold that full depth (`COMMON`, `stackCategories`,
+`profileRules`, `metrics`, `backgrounds`). Nothing was deleted from them — they
+are the source if a question needs promoting back onto the sheet.
+
+## Storage
+
+Tick state and theme are kept in `localStorage` under `tdc-jo-checklist-*` so
+they do **not** collide with RHJOForm, which shares the `davshe06.github.io`
+origin. No answers are stored, because none are collected.
 
 ## Cache busting
 
 `index.html` appends `?v=N` to every asset. Bump `N` on each deploy so browsers
 and the GitHub Pages CDN fetch fresh files instead of serving a stale copy.
-
-## AI analysis
-
-The "Analyze job order" button calls `api/analyze.js`, deployed on Vercel with
-`ANTHROPIC_API_KEY` set server-side (never in the browser). When hosting on
-GitHub Pages, paste the full Vercel endpoint URL into the endpoint settings on
-the Review & Export step.

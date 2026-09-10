@@ -2,28 +2,33 @@
 
 ## What this is
 
-A staffing **job order intake** web app for sales reps to capture requirements
-during a client intake call. A behind-the-scenes decision tree surfaces relevant
-follow-up questions based on the role and the focus areas selected.
+A **one-page checklist** a staffing rep works during a live client intake
+call. It does **not** capture data: the notes come from the Teams call
+transcription and follow-up email. The page's only job is to make sure the
+rep has *asked* everything needed to write the job order afterwards.
 
-This repo was forked from [RHJOForm](https://github.com/davshe06/RHJOForm) (the
-full long-form version) to become a **shorter, checklist-style** variant. The
-engine and role data are inherited wholesale; the work here is condensing the
-flow. **The parent repo is a separate project — do not edit it from here.**
+Picking a role surfaces an explainer plus the questions worth asking for
+that role. Every job order also carries a fixed block (work model, address,
+start date, interview process, pay rate, contract length, C2C/1099).
+
+This repo was forked from [RHJOForm](https://github.com/davshe06/RHJOForm)
+(the full long-form intake app). The role catalogs are inherited wholesale;
+the wizard, the answer capture and the exports were removed.
+**The parent repo is a separate project — do not edit it from here.**
 
 ## Stack
 
 Vanilla JS, vanilla CSS, no build step, no dependencies, no framework. Open
-`index.html` directly or `python3 -m http.server 8000`. The only dependency
-anywhere is `@anthropic-ai/sdk` inside the Vercel function.
+`index.html` directly or `python3 -m http.server 8000`.
 
 Keep it that way unless asked — the whole point is that a rep can open a file
 and it works, and that it deploys to GitHub Pages as static files.
 
 ## Architecture
 
-`app.js` is a **generic render engine**. It knows nothing about specific roles;
-it renders whatever the catalogs register. Role knowledge lives entirely in data.
+`app.js` is a **generic render engine**. It knows nothing about specific
+roles; it renders whatever the catalogs register. Role knowledge lives
+entirely in data.
 
 Each `roles-*.js` is an IIFE registering into `window.FORMS`:
 
@@ -31,12 +36,11 @@ Each `roles-*.js` is an IIFE registering into `window.FORMS`:
 window.FORMS.management = {
   id: "management",
   label: "Management Resources",
-  business: "pts",              // which business tab hosts it (pts | tts)
-  stackLabel: "Systems & Skills", // optional: overrides the "Tech Stack" step label
+  business: "pts",        // which business tab hosts it (pts | tts)
   brand: APP_BRAND,
-  common: COMMON,               // basics / logistics / team / closing steps
-  roles: ROLES,                 // role configs keyed by id
-  roleOrder: ROLE_ORDER         // display order in the picker
+  common: COMMON,         // retained by the catalogs, no longer rendered
+  roles: ROLES,
+  roleOrder: ROLE_ORDER
 };
 ```
 
@@ -44,62 +48,62 @@ The IIFE wrapper matters: every catalog declares top-level `COMMON`, `ROLES`,
 `ROLE_ORDER`, so without it they collide.
 
 Two-level nav: **business selector** (PTS / TTS) → **form toggle** (only shown
-when a business hosts more than one form). Each form keeps a fully independent
-job order in the store; `state` is a live pointer to the active one, which is
-why the rest of the engine needs no awareness of forms.
+when a business hosts more than one form) → **role picker** → the checklist.
 
-### A role config
+### What the page renders from a role config
 
-```js
-role_id: {
-  label, icon, tagline,
-  about,        // 2–3 sentence plain-language explainer, shown in the notes rail
-  blurb,        // recruiter-facing coaching note on the Focus Areas step
-  timePrompt,   // the "top 3 things" question for that role
-  focusAreas: [{ id, label, icon, deepDive: { intro, questions, tips } }],
-  specialists:  [{ label, overlapsArea }],   // overlapsArea must be a focusArea id
-  profileRules: [{ must: [focusAreaIds], profile, detail }],
-  stackCategories: [{ id, label, placeholder, options }],
-  aiUseCases, aiTools, metrics, backgrounds
-}
-```
+| Field | Used for |
+| --- | --- |
+| `label`, `icon`, `tagline` | role picker card and sheet heading |
+| `about` | the plain-language explainer under the title |
+| `blurb` | the recruiter coaching note |
+| `timePrompt` | the "top 3 priorities" checklist item |
+| `focusAreas[]` | **one checklist item each** — label, `deepDive.intro` as the note, and up to two prompts |
 
-Question types: `text`, `textarea`, `number`, `select`, `radio`, `chips`
-(multi-select, always allows custom "+ Other…" entries), `textlist` (N numbered
-short-answer boxes). Conditional display via `showIf(answers, state)`. Tips via
-`when(answers, state)`; `areaPriority(state, id)` reads a focus area's priority
-(`"must" | "nice" | "skip"`).
+`COMMON`, `stackCategories`, `specialists`, `profileRules`, `metrics` and
+`backgrounds` are still present in the catalogs but are **not rendered**. They
+are left in place deliberately: they are the source of truth if a question
+ever needs promoting back onto the sheet.
 
-## Condensing levers
+### How prompts are chosen
 
-- `wizardSteps()` in `app.js` — which steps exist and their order
-- each catalog's `COMMON` — the role-agnostic questions
-- each role's `focusAreas[].deepDive.questions` — the drill-downs
+`areaPrompts()` condenses each focus area's `deepDive.questions` (512 across
+the corpus) down to two: the area's **opening framing question**, then the
+first question that **drives a coaching tip** (detected by scanning the tip
+`when` closures for `a.<id>` references). This keeps the catalogs' judgement
+about what actually separates candidates without rendering the long form.
 
-Prefer cutting **data** over adding engine branches. If a step should disappear
-for one form only, add a form-level flag (like `stackLabel`) rather than
-hard-coding form ids in the engine.
+To change how much surfaces, change the `max` passed to `areaPrompts()` — not
+the catalogs.
 
 ## Conventions
+
+**It stays one page.** Every role currently renders 14–16 checklist items and
+prints to a single A4 page (worst case ~985px against ~1030px usable). If you
+add items, re-measure in print media before committing.
+
+**No data capture.** Checkboxes store tick state only. Never add a text input,
+a summary, or an export — the transcript is the record.
 
 **Cache busting is mandatory.** `index.html` appends `?v=N` to every asset.
 **Bump `N` on every deploy** — GitHub Pages sits behind a CDN and browsers cache
 JS hard, so without a bump users keep running old code. This has bitten before.
 
-**Storage keys are namespaced** `tdc-jo-checklist-*`. RHJOForm and this app are
-both served from `davshe06.github.io`, and `localStorage` is per-**origin**, not
-per-path. Never revert these to the parent's keys.
+**Storage keys are namespaced** `tdc-jo-checklist-*` (`-ticks`, `-theme`).
+RHJOForm and this app are both served from `davshe06.github.io`, and
+`localStorage` is per-**origin**, not per-path. Never revert these to the
+parent's keys.
 
 **Verify in a real browser before committing.** Playwright is available at
 `/opt/pw-browsers/chromium-1194/chrome-linux/chrome`; drive `file://` against
 `index.html`, assert the behavior, and check `pageerror` + console errors are
-empty. Syntax checks alone have missed real bugs here.
+empty. Syntax checks alone have missed real bugs here — the last two (an
+`&amp;` rendering literally in a brand title, and a half-stripped curly quote)
+were both invisible to `node --check`.
 
-**Validate catalogs after editing them:**
-
-```js
-// every profileRule.must and specialist.overlapsArea must be a real focusArea id
-```
+**Catalog strings are plain text, not HTML.** `app.js` renders via
+`textContent`. Never put HTML entities (`&amp;`) in a catalog string — write
+the literal character.
 
 **Theming.** Colors are CSS custom properties. Light lives on bare `:root`; dark
 is duplicated across `@media (prefers-color-scheme: dark)` and
@@ -109,16 +113,12 @@ off it — Management Resources is red (`#ad0019`), Tech/Digital blue (`#2456d6`
 Never hard-code an accent color in a component; use the tokens (including
 `--accent-ring` for focus rings) so both themes follow.
 
-**Exports** must stay in sync when questions change: on-screen summary, markdown
-copy, Word (`docx.js`), print/PDF, and the candidate PDF. The candidate export
-strips commercial terms — see `CANDIDATE_EXCLUDE_IDS` / `CANDIDATE_EXCLUDE_SECTIONS`.
-
 ## Deployment
 
-- **GitHub Pages:** Settings → Pages → branch `main`, folder `/ (root)`.
-- **AI analysis:** `api/analyze.js` on Vercel with `ANTHROPIC_API_KEY` set
-  server-side. The key must never reach the browser. When hosted on Pages, the
-  endpoint URL is pasted into the AI settings on the Review & Export step.
+**GitHub Pages:** Settings → Pages → branch `main`, folder `/ (root)`.
+
+`api/analyze.js` and `vercel.json` are left over from the long-form app's AI
+analysis and are no longer referenced by the page.
 
 ## Commit trailer
 

@@ -20,7 +20,7 @@
    ========================================================================= */
 
 /* Sidebar brand (read by app.js) */
-const APP_BRAND = { title: "Tech &amp; Engineering", subtitle: "Job Order Intake" };
+const APP_BRAND = { title: "Tech & Engineering", subtitle: "Job Order Intake" };
 
 /* -------------------------------------------------------------------------
    Shared/common steps (role-agnostic parts). Options that depend on the role
