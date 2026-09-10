@@ -11,6 +11,10 @@ Picking a role surfaces an explainer plus the questions worth asking for
 that role. Every job order also carries a fixed block (work model, address,
 start date, interview process, pay rate, contract length, C2C/1099).
 
+A **reference rail** on the right holds the job description or prior notes the
+rep pastes in, so they can read them beside the checklist. It is reference
+material only — see below.
+
 This repo was forked from [RHJOForm](https://github.com/davshe06/RHJOForm)
 (the full long-form intake app). The role catalogs are inherited wholesale;
 the wizard, the answer capture and the exports were removed.
@@ -80,16 +84,30 @@ the catalogs.
 
 **It stays one page.** Every role currently renders 14–16 checklist items and
 prints to a single A4 page (worst case ~985px against ~1030px usable). If you
-add items, re-measure in print media before committing.
+add items, re-measure in print media before committing. The reference rail is
+hidden in print (`@media print`), so pasted material never costs a page.
 
-**No data capture.** Checkboxes store tick state only. Never add a text input,
-a summary, or an export — the transcript is the record.
+**No data capture.** Checkboxes store tick state only. Never add a summary or
+an export — the transcript is the record.
+
+The reference rail is the **one** text input, and it is deliberately inert:
+the rep pastes context *in* to read it, and nothing reads it back out. It is
+never collected, scored, printed or exported. Keep it that way — the moment
+something consumes it, this is a capture form again.
+
+**The rail must not re-render on input.** `render()` rebuilds the DOM, so a
+re-render mid-keystroke drops the caret. `renderReference()`'s input handler
+saves and returns; it never calls `render()`. The parent app hit this exact
+bug, which is why its notes rail carries the same warning.
 
 **Cache busting is mandatory.** `index.html` appends `?v=N` to every asset.
 **Bump `N` on every deploy** — GitHub Pages sits behind a CDN and browsers cache
 JS hard, so without a bump users keep running old code. This has bitten before.
 
-**Storage keys are namespaced** `tdc-jo-checklist-*` (`-ticks`, `-theme`).
+**Storage keys are namespaced** `tdc-jo-checklist-*` (`-ticks`, `-theme`,
+`-reference`). The reference text lives in its own key so clearing the
+checklist never drops it, and so a long paste cannot blow the tick record's
+storage quota.
 RHJOForm and this app are both served from `davshe06.github.io`, and
 `localStorage` is per-**origin**, not per-path. Never revert these to the
 parent's keys.

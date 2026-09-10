@@ -13,6 +13,7 @@
 
 const STORE_KEY = "tdc-jo-checklist-ticks";
 const THEME_KEY = "tdc-jo-checklist-theme";
+const REF_KEY   = "tdc-jo-checklist-reference";
 
 const BUSINESSES = [
   { id: "pts", label: "PTS", title: "Project & Talent Solutions" },
@@ -39,7 +40,10 @@ const state = {
   form: null,
   role: null,
   ticks: {},
-  theme: "auto"
+  theme: "auto",
+  /* Reference material the rep pastes in (job description, prior notes).
+     Read-only context for working the checklist — never part of any output. */
+  reference: { text: "", height: null }
 };
 
 function formsFor(business) {
@@ -62,6 +66,13 @@ function loadState() {
     }
   } catch (e) { /* corrupt or unavailable storage — start clean */ }
   try { state.theme = localStorage.getItem(THEME_KEY) || "auto"; } catch (e) {}
+  try {
+    const ref = JSON.parse(localStorage.getItem(REF_KEY) || "{}");
+    if (ref && typeof ref === "object") {
+      state.reference.text = typeof ref.text === "string" ? ref.text : "";
+      state.reference.height = typeof ref.height === "number" ? ref.height : null;
+    }
+  } catch (e) {}
 
   /* Repair anything that no longer exists in the catalogs. */
   if (!formsFor(state.business).length) state.business = BUSINESSES[0].id;
@@ -79,6 +90,12 @@ function saveState() {
       ticks: state.ticks, business: state.business, form: state.form, role: state.role
     }));
   } catch (e) {}
+}
+
+/* Kept in its own key so clearing the checklist never drops the reference
+   text, and so a long paste can't blow the tick record's storage quota. */
+function saveReference() {
+  try { localStorage.setItem(REF_KEY, JSON.stringify(state.reference)); } catch (e) {}
 }
 
 function applyTheme() {
@@ -174,10 +191,67 @@ function render() {
 
   app.appendChild(renderHeader());
 
-  const main = el("main", "page");
+  const page = el("div", "page");
+  const main = el("main", "main-col");
   if (!activeRole()) main.appendChild(renderRolePicker());
   else main.appendChild(renderChecklist());
-  app.appendChild(main);
+  page.appendChild(main);
+  page.appendChild(renderReference());
+  app.appendChild(page);
+}
+
+/* ---------- reference rail ----------
+   Somewhere to paste the job description or the notes the client sent before
+   the call, so the rep can read them beside the checklist instead of switching
+   windows. It is reference only: nothing here is collected, scored, exported
+   or printed. It persists across reloads and role changes, because it belongs
+   to the job order being worked, not to the role that was picked.
+
+   Typing must never re-render — render() rebuilds the DOM, which would drop
+   the caret mid-sentence — so the input handler saves and returns. */
+function renderReference() {
+  const aside = el("aside", "reference");
+
+  const head = el("div", "ref-head");
+  head.appendChild(el("h2", null, "Reference"));
+  if (state.reference.text.trim()) {
+    const clear = el("button", "ref-clear", "Clear");
+    clear.title = "Remove the pasted reference material";
+    clear.addEventListener("click", () => {
+      state.reference.text = "";
+      saveReference();
+      render();
+    });
+    head.appendChild(clear);
+  }
+  aside.appendChild(head);
+  aside.appendChild(el("p", "ref-sub",
+    "Paste the job description or anything the client sent beforehand. Nothing here is saved to the job order."));
+
+  const ta = document.createElement("textarea");
+  ta.className = "ref-text";
+  ta.placeholder = "Paste the job description or prior notes here…";
+  ta.value = state.reference.text;
+  ta.spellcheck = false;
+  if (state.reference.height) ta.style.height = state.reference.height + "px";
+  ta.addEventListener("input", () => {
+    state.reference.text = ta.value;
+    saveReference();               /* deliberately no render() — see above */
+  });
+
+  /* Remember a manual drag-resize so the chosen height survives a re-render. */
+  if (typeof ResizeObserver !== "undefined") {
+    let last = null;
+    new ResizeObserver(() => {
+      const h = ta.offsetHeight;
+      if (!h) return;
+      if (last === null) { last = h; return; }   /* first measurement = baseline */
+      if (h !== last) { last = h; state.reference.height = h; saveReference(); }
+    }).observe(ta);
+  }
+
+  aside.appendChild(ta);
+  return aside;
 }
 
 function renderHeader() {

@@ -15,7 +15,14 @@ Pick a business, pick a role, and you get:
 - and the fixed block every job order needs — work model and address, start
   date, interview process, pay rate, contract length and conversion, C2C/1099.
 
-Every role renders 14–16 items and prints to a single page.
+Alongside it, a **reference rail** holds whatever the client sent beforehand —
+paste the job description or prior notes and read them next to the checklist
+instead of switching windows. It persists across reloads, role changes and
+catalog switches, because it belongs to the job order being worked rather than
+to the role that was picked.
+
+Every role renders 14–16 items and prints to a single page. The reference rail
+is not printed.
 
 ## Running it
 
@@ -75,9 +82,13 @@ are the source if a question needs promoting back onto the sheet.
 
 ## Storage
 
-Tick state and theme are kept in `localStorage` under `tdc-jo-checklist-*` so
-they do **not** collide with RHJOForm, which shares the `davshe06.github.io`
-origin. No answers are stored, because none are collected.
+Tick state, theme and the reference text are kept in `localStorage` under
+`tdc-jo-checklist-*` (`-ticks`, `-theme`, `-reference`) so they do **not**
+collide with RHJOForm, which shares the `davshe06.github.io` origin.
+
+No answers are stored, because none are collected. The reference text is the
+one thing typed into the page, and nothing reads it back out — it is not
+scored, printed or exported.
 
 ## Cache busting
 
